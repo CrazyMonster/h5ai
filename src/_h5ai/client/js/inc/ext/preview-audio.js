@@ -15,18 +15,6 @@ modulejs.define('ext/preview-audio', ['_', '$', 'core/settings', 'core/event', '
 			var s = Math.floor(d % 3600 % 60);
 			return ((h > 0 ? h + ":" : "") + (m > 0 ? (h > 0 && m < 10 ? "0" : "") + m + ":" : "0:") + (s < 10 ? "0" : "") + s);
 		},
-		
-		preloadAudio = function (src, callback) {
-
-			var $audio = $('<audio/>')
-				.one('loadedmetadata', function () {
-
-					callback($audio);
-					// setTimeout(function () { callback($img); }, 1000); // for testing
-				})
-				.attr('preload', 'auto')
-				.attr('src', src);
-		},
 
 		onEnter = function (items, idx) {
 
@@ -45,10 +33,10 @@ modulejs.define('ext/preview-audio', ['_', '$', 'core/settings', 'core/event', '
 							'left': '' + (($content.width()-$audio.width())*0.5) + 'px',
 							'top': '' + (($content.height()-$audio.height())*0.5) + 'px'
 						});
-
+						
 						preview.setLabels([
 							currentItem.label,
-							formatSecondsToHMS($audio[0].duration)
+							($audio[0].duration) ? formatSecondsToHMS($audio[0].duration) : "--:--"
 						]);
 					}
 				},
@@ -58,26 +46,22 @@ modulejs.define('ext/preview-audio', ['_', '$', 'core/settings', 'core/event', '
 					currentIdx = (currentIdx + rel + currentItems.length) % currentItems.length;
 					currentItem = currentItems[currentIdx];
 
-					var spinnerTimeout = setTimeout(function () { preview.showSpinner(true); }, 200);
+					var $audio = $("<audio />")
+						.attr("src", currentItem.absHref)
+						.attr("controls", true)
+						.attr("autoplay", true)
+						.on("resize loadedmetadata", onAdjustSize);
 
-					preloadAudio(currentItem.absHref, function ($preloaded_audio) {
+					$('#pv-content').fadeOut(100, function () {
+						$('#pv-content').empty().append($audio.attr('id', 'pv-audio-audio')).fadeIn(200);
+						
+						// small timeout, so $audio is visible and therefore $audio.width is available
+						setTimeout(function () {
+							onAdjustSize();
 
-						clearTimeout(spinnerTimeout);
-						preview.showSpinner(false);
-
-						$('#pv-content').fadeOut(100, function () {
-							$preloaded_audio.attr('controls', true);
-							
-							$('#pv-content').empty().append($preloaded_audio.attr('id', 'pv-audio-audio')).fadeIn(200);
-							
-							// small timeout, so $preloaded_audio is visible and therefore $preloaded_audio.width is available
-							setTimeout(function () {
-								onAdjustSize();
-
-								preview.setIndex(currentIdx + 1, currentItems.length);
-								preview.setRawLink(currentItem.absHref);
-							}, 10);
-						});
+							preview.setIndex(currentIdx + 1, currentItems.length);
+							preview.setRawLink(currentItem.absHref);
+						}, 10);
 					});
 				};
 

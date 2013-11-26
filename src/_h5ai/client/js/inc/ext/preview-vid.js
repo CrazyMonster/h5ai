@@ -6,18 +6,6 @@ modulejs.define('ext/preview-vid', ['_', '$', 'core/settings', 'core/event', 'ex
 			types: []
 		}, allsettings['preview-vid']),
 
-		preloadVid = function (src, callback) {
-
-			var $video = $('<video/>')
-				.one('loadedmetadata', function () {
-
-					callback($video);
-					// setTimeout(function () { callback($img); }, 1000); // for testing
-				})
-				.attr('preload', 'auto')
-				.attr('src', src);
-		},
-
 		onEnter = function (items, idx) {
 
 			var currentItems = items,
@@ -35,12 +23,15 @@ modulejs.define('ext/preview-vid', ['_', '$', 'core/settings', 'core/event', 'ex
 							'left': '' + (($content.width()-$vid.width())*0.5) + 'px',
 							'top': '' + (($content.height()-$vid.height())*0.5) + 'px'
 						});
-
-						preview.setLabels([
-							currentItem.label,
-							'' + $vid[0].videoWidth + 'x' + $vid[0].videoHeight,
-							'' + (100 * $vid.width() / $vid[0].videoWidth).toFixed(0) + '%'
-						]);
+						
+						var labels = [ currentItem.label ];
+						
+						if ($vid[0].videoWidth && $vid[0].videoHeight) {
+							labels.push('' + $vid[0].videoWidth + 'x' + $vid[0].videoHeight);
+							labels.push('' + (100 * $vid.width() / $vid[0].videoWidth).toFixed(0) + '%');
+						}
+						
+						preview.setLabels(labels);
 					}
 				},
 
@@ -49,26 +40,22 @@ modulejs.define('ext/preview-vid', ['_', '$', 'core/settings', 'core/event', 'ex
 					currentIdx = (currentIdx + rel + currentItems.length) % currentItems.length;
 					currentItem = currentItems[currentIdx];
 
-					var spinnerTimeout = setTimeout(function () { preview.showSpinner(true); }, 200);
+					var $video = $("<video />")
+						.attr("src", currentItem.absHref)
+						.attr("controls", true)
+						.attr("autoplay", true)
+						.on("resize loadedmetadata", onAdjustSize);
 
-					preloadVid(currentItem.absHref, function ($preloaded_vid) {
+					$('#pv-content').fadeOut(100, function () {
+						$('#pv-content').empty().append($video.attr('id', 'pv-vid-video')).fadeIn(200);
+						
+						// small timeout, so $video is visible and therefore $video.width is available
+						setTimeout(function () {
+							onAdjustSize();
 
-						clearTimeout(spinnerTimeout);
-						preview.showSpinner(false);
-
-						$('#pv-content').fadeOut(100, function () {
-							$preloaded_vid.attr('controls', true);
-							
-							$('#pv-content').empty().append($preloaded_vid.attr('id', 'pv-vid-video')).fadeIn(200);
-							
-							// small timeout, so $preloaded_vid is visible and therefore $preloaded_vid.width is available
-							setTimeout(function () {
-								onAdjustSize();
-
-								preview.setIndex(currentIdx + 1, currentItems.length);
-								preview.setRawLink(currentItem.absHref);
-							}, 10);
-						});
+							preview.setIndex(currentIdx + 1, currentItems.length);
+							preview.setRawLink(currentItem.absHref);
+						}, 10);
 					});
 				};
 
